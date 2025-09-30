@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Nibir Cable Vision — ISP Billing (Single HTML)</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root{--bg:#f5f8ff;--card:#fff;--accent:#0b63d6;--muted:#6b7280;--success:#16a34a}
+    *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans',"Helvetica Neue",Arial}
+    body{margin:0;background:linear-gradient(180deg,#f8fbff, #eef6ff);color:#0f172a}
+    .app{display:flex;min-height:100vh}
+    aside{width:240px;background:linear-gradient(180deg,var(--card),#f8fbff);padding:18px;border-right:1px solid rgba(15,23,42,0.05)}
+    header{display:flex;align-items:center;gap:12px}
+    .brand{font-weight:700;color:var(--accent);} .small{font-size:12px;color:var(--muted)}
+    nav{margin-top:18px}
+    .nav-item{display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;cursor:pointer;color:#0f172a}
+    .nav-item:hover{background:rgba(11,99,214,0.06)}
+    .nav-item.active{background:var(--accent);color:#fff}
+    main{flex:1;padding:20px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    .card{background:var(--card);padding:14px;border-radius:12px;box-shadow:0 2px 8px rgba(15,23,42,0.04)}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .full{grid-column:1/-1}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;text-align:left;border-bottom:1px solid #eef2ff;font-size:14px}
+    .btn{padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
+    .btn.primary{background:var(--accent);color:#fff}
+    .btn.ghost{background:transparent;border:1px solid #e6eefc}
+    .muted{color:var(--muted)}
+    /* responsive */
+    @media (max-width:900px){aside{display:none} .grid{grid-template-columns:1fr} }
+    /* popups */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.45);display:none;align-items:center;justify-content:center;z-index:60}
+    .modal{width:940px;max-width:95%;background:#fff;border-radius:12px;padding:18px}
+    .row{display:flex;gap:10px;align-items:center}
+    .col{flex:1}
+    .small-muted{font-size:13px;color:var(--muted)}
+    .table-wrap{max-height:380px;overflow:auto}
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+    .chip{display:inline-block;padding:6px 8px;border-radius:999px;font-size:13px;background:#eef6ff;color:var(--accent)}
+    input, select {padding:8px;border-radius:8px;border:1px solid #e6eefc}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <header>
+        <div>
+          <div class="brand">Nibir Cable Vision</div>
+          <div class="small">ISP Digital is Different</div>
+        </div>
+      </header>
+
+      <nav id="menu">
+        <div class="nav-item active" data-tab="dashboard"><i class="fa fa-chart-line"></i> Dashboard</div>
+        <div class="nav-item" data-tab="billing"><i class="fa fa-file-invoice-dollar"></i> Billing</div>
+        <div class="nav-item" data-tab="customers"><i class="fa fa-users"></i> Customers</div>
+        <div class="nav-item" data-tab="expense"><i class="fa fa-receipt"></i> Expense</div>
+        <div class="nav-item" data-tab="complaints"><i class="fa fa-comment-dots"></i> Complaints</div>
+        <div class="nav-item" data-tab="backup"><i class="fa fa-database"></i> Backup</div>
+        <div style="height:12px"></div>
+        <div class="small-muted">© 2025 Nibir Cable Vision</div>
+        <div class="small-muted">Powered by MD.Tofayel Ahmad</div>
+        <div class="small-muted">Call: 01300-311561</div>
+      </nav>
+    </aside>
+
+    <main>
+      <div class="topbar">
+        <div>
+          <h2 id="page-title">Dashboard</h2>
+          <div class="small-muted">Admin Dashboard • Auto Billing • Bill Pay • Auto Pause • SMS Notification</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="chip" id="total-revenue-chip">Revenue: ৳0</div>
+          <button class="btn ghost" id="lock-now">Lock</button>
+          <button class="btn primary" id="export-json">Export Backup</button>
+        </div>
+      </div>
+
+      <section id="dashboard" class="tab card">
+        <div class="grid">
+          <div class="card">
+            <h3>Payment / Income / Expense</h3>
+            <canvas id="incomeChart" height="140"></canvas>
+          </div>
+
+          <div class="card">
+            <h3>User Statistics</h3>
+            <div id="user-stats" style="padding-top:8px"></div>
+          </div>
+
+          <div class="card">
+            <h3>Invoice Statistics</h3>
+            <div id="invoice-stats"></div>
+          </div>
+
+          <div class="card full">
+            <h3>Recent Users</h3>
+            <div class="table-wrap">
+              <table id="recent-users-table"><thead><tr><th>Name</th><th>Phone</th><th>ISP</th><th>Package</th><th>Price</th></tr></thead><tbody></tbody></table>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Billing Tab -->
+      <section id="billing" class="tab" style="display:none">
+        <div class="grid">
+          <div class="card">
+            <h3>Create Bill / Payment</h3>
+            <div class="row" style="margin-top:8px">
+              <select id="billing-customer" class="col"></select>
+              <input id="billing-amount" type="number" placeholder="Amount (৳)" class="col" />
+              <button class="btn primary" id="add-payment">Add Payment</button>
+            </div>
+            <div style="margin-top:8px" class="small-muted">Pending users will appear as popup in Dashboard.</div>
+          </div>
+
+          <div class="card">
+            <h3>Pending vs Paid</h3>
+            <div style="margin-top:8px">
+              <button class="btn ghost" id="show-pending">Show Pending (Popup)</button>
+              <button class="btn" id="mark-all-pending-paid">Mark all pending as paid</button>
+            </div>
+          </div>
+
+          <div class="card full">
+            <h3>All Payments</h3>
+            <div class="table-wrap">
+              <table id="payments-table"><thead><tr><th>Customer</th><th>Amount</th><th>Date</th><th>Time</th></tr></thead><tbody></tbody></table>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Customers Tab -->
+      <section id="customers" class="tab" style="display:none">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h3>Customers</h3>
+            <div>
+              <button class="btn" id="import-json">Import Backup</button>
+              <button class="btn primary" id="add-customer">Add Customer</button>
+            </div>
+          </div>
+
+          <div class="table-wrap" style="margin-top:8px">
+            <table id="customers-table"><thead><tr><th>Name</th><th>Phone</th><th>ISP</th><th>Package</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Expense -->
+      <section id="expense" class="tab" style="display:none">
+        <div class="grid">
+          <div class="card">
+            <h3>Expense Table (Yearly)</h3>
+            <div style="margin-top:8px" class="row">
+              <input id="expense-name" placeholder="খরচের নাম" class="col" />
+              <input id="expense-amount" placeholder="খরচের পরিমাণ (৳)" type="number" class="col" />
+              <button class="btn primary" id="add-expense">Add Expense</button>
+            </div>
+            <div style="margin-top:10px" class="table-wrap">
+              <table id="expense-table"><thead><tr><th>নাম</th><th>তারিখ</th><th>সময়</th><th>পরিমাণ</th><th>মন্তব্য</th></tr></thead><tbody></tbody></table>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Summary</h3>
+            <div id="expense-summary" style="margin-top:8px"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Complaints -->
+      <section id="complaints" class="tab" style="display:none">
+        <div class="card">
+          <h3>Complaints Box</h3>
+          <div style="margin-top:8px" class="row">
+            <input id="complaint-customer" placeholder="Customer name" class="col" />
+            <input id="complaint-text" placeholder="Complaint" class="col" />
+            <button class="btn primary" id="add-complaint">Add</button>
+          </div>
+          <div style="margin-top:12px" class="table-wrap">
+            <table id="complaints-table"><thead><tr><th>Name</th><th>Complaint</th><th>Date</th><th>Actions</th></tr></thead><tbody></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Backup -->
+      <section id="backup" class="tab" style="display:none">
+        <div class="card">
+          <h3>Backup & Restore</h3>
+          <div style="margin-top:8px">
+            <button class="btn primary" id="download-backup">Download JSON Backup</button>
+            <input type="file" id="restore-file" style="margin-left:8px" />
+            <div class="small-muted" style="margin-top:8px">Backup separates Paid / Pending and all data stored in localStorage.</div>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        © 2025 Nibir Cable Vision | Powered by MD.Tofayel Ahmad | call 01300-311561
+      </footer>
+    </main>
+  </div>
+
+  <!-- Modals -->
+  <div class="modal-backdrop" id="modal-backdrop">
+    <div class="modal" id="modal-content"></div>
+  </div>
+
+  <!-- Lock screen -->
+  <div class="modal-backdrop" id="lock-backdrop" style="display:none;z-index:999">
+    <div class="modal" style="max-width:420px;text-align:center">
+      <h3>Locked</h3>
+      <p class="small-muted">Security lock — enter admin PIN to continue</p>
+      <input id="unlock-pin" placeholder="Enter PIN" style="width:100%;padding:10px;margin-top:10px;border-radius:8px;border:1px solid #e6eefc" />
+      <div style="margin-top:12px"><button class="btn primary" id="unlock-btn">Unlock</button></div>
+      <div class="small-muted" style="margin-top:8px">First time? Set an admin PIN in settings.</div>
+    </div>
+  </div>
+
+  <!-- Firebase (modular) initialization -->
+  <script type="module">
+    // Using Firebase modular CDN so this file can stay single-file and still talk to Firestore.
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js'
+    import { getAnalytics } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-analytics.js'
+    import { getFirestore, doc, setDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js'
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCAYY8yXK9ID3vbKrfdJsaKV6Tp_ydTVHI",
+      authDomain: "nibir-billing.firebaseapp.com",
+      projectId: "nibir-billing",
+      storageBucket: "nibir-billing.firebasestorage.app",
+      messagingSenderId: "188322344831",
+      appId: "1:188322344831:web:dc378a21221985acf2744a",
+      measurementId: "G-HE76BPW76N"
+    }
+
+    try{
+      const fbApp = initializeApp(firebaseConfig)
+      try{ getAnalytics(fbApp) }catch(e){}
+      const db = getFirestore(fbApp)
+
+      // expose helpers to the main script
+      window.firebaseEnabled = true
+      window.firebaseAddCustomer = async (customer) => {
+        try{
+          const id = customer.id || ('c_'+Date.now())
+          await setDoc(doc(db, 'customers', id), {...customer, createdAt: new Date().toISOString()})
+          return {ok:true, id}
+        }catch(err){ console.error('Firebase add error', err); return {ok:false, error:err} }
+      }
+
+      window.firebaseFetchCustomers = async ()=>{
+        try{
+          const snap = await getDocs(collection(db,'customers'))
+          const arr = []
+          snap.forEach(d=> arr.push({id:d.id,...d.data()}))
+          return {ok:true, data:arr}
+        }catch(err){ console.error(err); return {ok:false, error:err} }
+      }
+
+    }catch(e){ console.warn('Firebase init failed', e); window.firebaseEnabled = false }
+  </script>
+
+  <script>
+    /**********************
+     * Simple single-file ISP Billing App
+     * LocalStorage-based. Mobile-responsive. Backup/Restore JSON.
+     * Now: Add-customer button fixed + optional Firestore sync if enabled.
+     **********************/
+
+    // Utilities
+    const $ = sel=>document.querySelector(sel)
+    const $$ = sel=>Array.from(document.querySelectorAll(sel))
+    const now = ()=>new Date()
+    const fmtDate = d=>new Date(d).toLocaleDateString('bn-BD')
+    const fmtTime = d=>new Date(d).toLocaleTimeString('en-US')
+
+    // Initial data & keys
+    const KEY = 'nibir_data_v1'
+    const DEFAULTS = {
+      customers: [],
+      payments: [],
+      expenses: [],
+      complaints: [],
+      settings: {idleLockSeconds:60, adminPIN:null},
+    }
+
+    // Load / Save
+    function load(){
+      const raw = localStorage.getItem(KEY)
+      if(!raw) return structuredClone(DEFAULTS)
+      try{ return JSON.parse(raw) }catch(e){return structuredClone(DEFAULTS)}
+    }
+    function save(data){ localStorage.setItem(KEY, JSON.stringify(data)) }
+
+    let state = load()
+
+    // Predefined ISPs & Packages (as requested)
+    const predefined = [
+      {isp:'RDPN',plans:[{name:'Start 10Mbps',price:500},{name:'Lite 12Mbps',price:700},{name:'Smart 15Mbps',price:1000},{name:'Next-level 18Mbps',price:1300},{name:'Boss-level 20Mbps',price:1500}]},
+      {isp:'4011',plans:[{name:'Lite 10Mbps',price:500}]},
+      {isp:'3011',plans:[{name:'Lite 10Mbps',price:500}]},
+      {isp:'Free-IP',plans:[{name:'Lite 10Mbps',price:0}]}
+    ]
+
+    // Helper: recalc totals
+    function totals(){
+      const revenue = state.payments.reduce((s,p)=>s + Number(p.amount||0),0)
+      const expense = state.expenses.reduce((s,e)=>s + Number(e.amount||0),0)
+      const net = revenue - expense
+      return {revenue,expense,net}
+    }
+
+    // UI renderers
+    function renderTotals(){
+      const t = totals()
+      $('#total-revenue-chip').textContent = `Revenue: ৳${t.revenue}  | Expense: ৳${t.expense} | Balance: ৳${t.net}`
+      const es = document.getElementById('expense-summary')
+      if(es) es.innerHTML = `<div class="small-muted">Total Income: ৳${t.revenue}</div><div class="small-muted">Total Expense: ৳${t.expense}</div><div style="margin-top:8px">Balance: <strong>৳${t.net}</strong></div>`
+    }
+
+    function renderRecentUsers(){
+      const tbody = $('#recent-users-table tbody')
+      if(!tbody) return
+      tbody.innerHTML = ''
+      state.customers.slice(-10).reverse().forEach(c=>{
+        const tr = document.createElement('tr')
+        tr.innerHTML = `<td><a href="#" class="customer-link" data-id="${c.id}">${c.name}</a></td><td>${c.phone}</td><td>${c.isp}</td><td>${c.plan}</td><td>৳${c.price}</td>`
+        tbody.appendChild(tr)
+      })
+      $$('.customer-link').forEach(el=>el.addEventListener('click',ev=>{ev.preventDefault(); showCustomerDetails(el.dataset.id)}))
+    }
+
+    function renderCustomersTable(){
+      const tbody = $('#customers-table tbody')
+      tbody.innerHTML = ''
+      state.customers.forEach(c=>{
+        const tr = document.createElement('tr')
+        tr.innerHTML = `<td>${c.name}</td><td>${c.phone}</td><td>${c.isp}</td><td>${c.plan}</td><td>৳${c.price}</td><td>${c.status||'Pending'}</td><td><button class="btn" data-id="${c.id}" data-act="edit">Edit</button> <button class="btn" data-id="${c.id}" data-act="del">Delete</button> <button class="btn" data-id="${c.id}" data-act="pay">Pay</button></td>`
+        tbody.appendChild(tr)
+      })
+      // actions
+      $$('[data-act="edit"]').forEach(b=>b.addEventListener('click',e=>openCustomerModal(b.dataset.id)))
+      $$('[data-act="del"]').forEach(b=>b.addEventListener('click',e=>{ if(confirm('Delete this customer?')){ state.customers = state.customers.filter(x=>x.id!==b.dataset.id); save(state); renderAll() }}))
+      $$('[data-act="pay"]').forEach(b=>b.addEventListener('click',e=>{ openPaymentModal(b.dataset.id) }))
+    }
+
+    function renderPaymentsTable(){
+      const tbody = $('#payments-table tbody')
+      tbody.innerHTML = ''
+      state.payments.slice().reverse().forEach(p=>{
+        const tr = document.createElement('tr')
+        tr.innerHTML = `<td>${p.customerName}</td><td>৳${p.amount}</td><td>${fmtDate(p.ts)}</td><td>${fmtTime(p.ts)}</td>`
+        tbody.appendChild(tr)
+      })
+    }
+
+    function renderExpensesTable(){
+      const tbody = $('#expense-table tbody')
+      tbody.innerHTML = ''
+      state.expenses.slice().reverse().forEach(e=>{
+        const tr = document.createElement('tr')
+        tr.innerHTML = `<td>${e.name}</td><td>${fmtDate(e.ts)}</td><td>${fmtTime(e.ts)}</td><td>৳${e.amount}</td><td>${e.note||''}</td>`
+        tbody.appendChild(tr)
+      })
+    }
+
+    function renderComplaints(){
+      const tbody = $('#complaints-table tbody')
+      tbody.innerHTML = ''
+      state.complaints.slice().reverse().forEach(c=>{
+        const tr = document.createElement('tr')
+        tr.innerHTML = `<td>${c.name}</td><td>${c.text}</td><td>${fmtDate(c.ts)}</td><td><button class="btn" data-id="${c.id}" data-act="delc">Delete</button></td>`
+        tbody.appendChild(tr)
+      })
+      $$('[data-act="delc"]').forEach(b=>b.addEventListener('click',()=>{ state.complaints = state.complaints.filter(x=>x.id!==b.dataset.id); save(state); renderAll() }))
+    }
+
+    function renderUserStats(){
+      const total = state.customers.length
+      const paid = state.customers.filter(c=>c.status==='Paid').length
+      const pending = total - paid
+      $('#user-stats').innerHTML = `<div>Total Users: <strong>${total}</strong></div><div>Paid: <strong>${paid}</strong></div><div>Pending: <strong>${pending}</strong></div>`
+      $('#invoice-stats').innerHTML = `<div>Total Payments: <strong>${state.payments.length}</strong></div>`
+
+      // payments select
+      const sel = $('#billing-customer')
+      if(sel){
+        sel.innerHTML = '<option value="">-- Select Customer --</option>'
+        state.customers.forEach(c=>{ const opt = document.createElement('option'); opt.value=c.id; opt.textContent = `${c.name} (${c.phone}) - ৳${c.price}`; sel.appendChild(opt) })
+      }
+    }
+
+    // Charts
+    let incomeChart = null
+    function renderChart(){
+      const ctx = document.getElementById('incomeChart')
+      if(!ctx) return
+      const revenue = totals().revenue
+      const expense = totals().expense
+      if(incomeChart) incomeChart.destroy()
+      incomeChart = new Chart(ctx,{
+        type:'bar',data:{labels:['Revenue','Expense','Balance'],datasets:[{label:'Amount (৳)',data:[revenue,expense,revenue-expense]}]},options:{responsive:true}
+      })
+    }
+
+    // Modals & popups
+    function showModal(html){ $('#modal-content').innerHTML = html; $('#modal-backdrop').style.display='flex' }
+    function closeModal(){ $('#modal-content').innerHTML=''; $('#modal-backdrop').style.display='none' }
+    document.getElementById('modal-backdrop').addEventListener('click',e=>{ if(e.target.id==='modal-backdrop') closeModal() })
+
+    // Customer details popup: show yearly payments
+    function showCustomerDetails(id){
+      const c = state.customers.find(x=>x.id===id)
+      if(!c) return alert('Customer not found')
+      const payments = state.payments.filter(p=>p.customerId===id)
+      let html = `<h3>${c.name} — Details</h3>`
+      html += `<div class="small-muted">Phone: ${c.phone} • ISP: ${c.isp} • Plan: ${c.plan} • Price: ৳${c.price}</div>`
+      html += `<div style="margin-top:12px"><h4>Yearly Billing</h4><table><thead><tr><th>Date</th><th>Time</th><th>Amount</th></tr></thead><tbody>`
+      payments.forEach(p=> html += `<tr><td>${fmtDate(p.ts)}</td><td>${fmtTime(p.ts)}</td><td>৳${p.amount}</td></tr>`)
+      html += `</tbody></table></div>`
+      showModal(html)
+    }
+
+    // Add / Edit customer modal (modes)
+    function openCustomerModal(id){
+      const editing = !!id
+      const c = state.customers.find(x=>x.id===id) || {name:'',phone:'',isp:'RDPN',plan:'Start 10Mbps',price:500,status:'Pending'}
+      let ispOptions = predefined.map(p=>`<option value="${p.isp}" ${p.isp===c.isp? 'selected':''}>${p.isp}</option>`).join('')
+      let html = `<h3>${editing? 'Edit':'Add'} Customer</h3><div class="row" style="margin-top:8px"><input id="m-name" placeholder="Name" value="${c.name}" class="col" /><input id="m-phone" placeholder="Phone" value="${c.phone}" class="col" /></div>`
+      html += `<div style="margin-top:8px" class="row"><select id="m-isp" class="col">${ispOptions}</select><select id="m-plan" class="col"></select></div>`
+      html += `<div style="margin-top:8px" class="row"><input id="m-price" type="number" value="${c.price}" class="col" /><select id="m-status" class="col"><option ${c.status==='Pending'?'selected':''}>Pending</option><option ${c.status==='Paid'?'selected':''}>Paid</option></select></div>`
+      html += `<div style="margin-top:10px;text-align:right"><button class="btn" id="m-cancel">Cancel</button><button class="btn primary" id="m-save">Save</button></div>`
+      showModal(html)
+
+      // populate plans
+      function setPlans(){ const isp = $('#m-isp').value; const p = predefined.find(x=>x.isp===isp) || predefined[0]; $('#m-plan').innerHTML = p.plans.map(pl=>`<option value="${pl.name}" ${pl.price===$('#m-price').value? 'selected':''}>${pl.name} - ৳${pl.price}</option>`).join('') }
+      setPlans()
+      $('#m-isp').addEventListener('change',setPlans)
+
+      document.getElementById('m-cancel').addEventListener('click',closeModal)
+      document.getElementById('m-save').addEventListener('click', async ()=>{
+        const name = $('#m-name').value.trim(), phone = $('#m-phone').value.trim(), isp = $('#m-isp').value, plan = $('#m-plan').value, price = Number($('#m-price').value), status=$('#m-status').value
+        if(!name) return alert('Name required')
+        if(editing){ Object.assign(c,{name,phone,isp,plan,price,status}); } else { const id = 'c_'+Date.now(); const newCust = {id,name,phone,isp,plan,price,status}; state.customers.push(newCust); }
+        save(state);
+
+        // try firebase sync (non-blocking)
+        try{
+          if(window.firebaseAddCustomer){
+            const cust = editing ? c : state.customers[state.customers.length-1];
+            const res = await window.firebaseAddCustomer(cust)
+            if(!res.ok) console.warn('Firebase save failed', res.error)
+          }
+        }catch(err){ console.warn('Firebase error', err) }
+
+        closeModal(); renderAll()
+      })
+    }
+
+    // hook add-customer button to open modal
+    $('#add-customer').addEventListener('click', ()=> openCustomerModal())
+
+    // Payment modal
+    function openPaymentModal(customerId){
+      const c = state.customers.find(x=>x.id===customerId)
+      let html = `<h3>Add Payment for ${c.name}</h3><div class="row" style="margin-top:8px"><input id="p-amount" type="number" placeholder="Amount (৳)" class="col" value="${c.price}" /></div>`
+      html += `<div style="margin-top:10px;text-align:right"><button class="btn" id="p-cancel">Cancel</button><button class="btn primary" id="p-save">Save Payment</button></div>`
+      showModal(html)
+      document.getElementById('p-cancel').addEventListener('click',closeModal)
+      document.getElementById('p-save').addEventListener('click',()=>{
+        const amount = Number($('#p-amount').value)||0
+        const payment = {id:'p_'+Date.now(),customerId:c.id,customerName:c.name,amount,ts:Date.now()}
+        state.payments.push(payment)
+        // mark customer as paid
+        const cust = state.customers.find(x=>x.id===c.id); if(cust) cust.status='Paid'
+        save(state); closeModal(); renderAll(); showPendingPopupIfAny()
+      })
+    }
+
+    // Add payment from billing tab
+    const addPaymentBtn = $('#add-payment')
+    if(addPaymentBtn) addPaymentBtn.addEventListener('click',()=>{
+      const cid = $('#billing-customer').value; const amt = Number($('#billing-amount').value)||0
+      if(!cid) return alert('Select a customer')
+      const c = state.customers.find(x=>x.id===cid)
+      const payment = {id:'p_'+Date.now(),customerId:cid,customerName:c.name,amount:amt,ts:Date.now()}
+      state.payments.push(payment); c.status='Paid'; save(state); renderAll(); $('#billing-amount').value=''
+    })
+
+    // expenses
+    $('#add-expense').addEventListener('click',()=>{
+      const name = $('#expense-name').value.trim(); const amount = Number($('#expense-amount').value)||0
+      if(!name) return alert('Enter expense name')
+      const e = {id:'e_'+Date.now(),name,amount,ts:Date.now(),note:''}
+      state.expenses.push(e)
+      save(state); $('#expense-name').value=''; $('#expense-amount').value=''; renderAll()
+    })
+
+    // complaints
+    $('#add-complaint').addEventListener('click',()=>{
+      const name = $('#complaint-customer').value.trim(); const text = $('#complaint-text').value.trim(); if(!text) return alert('Complaint required')
+      state.complaints.push({id:'q_'+Date.now(),name,text,ts:Date.now()}); save(state); renderAll(); $('#complaint-customer').value=''; $('#complaint-text').value=''
+    })
+
+    // pending popup
+    function showPendingPopupIfAny(){
+      const pending = state.customers.filter(c=>c.status!=='Paid')
+      if(pending.length===0) return
+      const list = pending.map(p=>`<li>${p.name} • ${p.phone} • ৳${p.price} <button class="btn" data-id="${p.id}" data-act="pay">Pay</button></li>`).join('')
+      showModal(`<h3>Pending Users</h3><div><ul>${list}</ul></div><div style="text-align:right;margin-top:8px"><button class="btn" id="close-pending">Close</button></div>`)
+      document.getElementById('close-pending').addEventListener('click',closeModal)
+      $$('[data-act="pay"]').forEach(b=>b.addEventListener('click',()=>{ closeModal(); openPaymentModal(b.dataset.id) }))
+    }
+    $('#show-pending').addEventListener('click',showPendingPopupIfAny)
+
+    // Export / Import
+    function downloadBackup(){ const data = JSON.stringify(state,null,2); const blob = new Blob([data],{type:'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='nibir_backup_'+Date.now()+'.json'; a.click(); URL.revokeObjectURL(url) }
+    $('#download-backup').addEventListener('click',downloadBackup)
+    $('#export-json').addEventListener('click',downloadBackup)
+
+    $('#restore-file').addEventListener('change',async e=>{
+      const f = e.target.files[0]; if(!f) return
+      const txt = await f.text(); try{ const obj = JSON.parse(txt); state = obj; save(state); alert('Restored backup'); renderAll(); }catch(err){alert('Invalid file')}
+    })
+
+    $('#import-json').addEventListener('click',()=>$('#restore-file').click())
+
+    // mark all pending as paid
+    $('#mark-all-pending-paid').addEventListener('click',()=>{
+      state.customers.forEach(c=>c.status='Paid'); save(state); renderAll()
+    })
+
+    // quick import sample data (first time) — if empty
+    if(state.customers.length===0 && state.payments.length===0 && state.expenses.length===0){
+      // create sample customers from predefined
+      const sample = [
+        {id:'c_1',name:'Rafiq',phone:'01711111111',isp:'RDPN',plan:'Start 10Mbps',price:500,status:'Pending'},
+        {id:'c_2',name:'Salma',phone:'01722222222',isp:'RDPN',plan:'Smart 15Mbps',price:1000,status:'Paid'}
+      ]
+      state.customers.push(...sample); save(state)
+    }
+
+    // Render all
+    function renderAll(){ renderTotals(); renderRecentUsers(); renderCustomersTable(); renderPaymentsTable(); renderExpensesTable(); renderComplaints(); renderUserStats(); renderChart() }
+    renderAll()
+
+    // Navigation
+    $$('#menu .nav-item').forEach(it=>it.addEventListener('click',()=>{
+      $$('#menu .nav-item').forEach(x=>x.classList.remove('active'))
+      it.classList.add('active')
+      const tab = it.dataset.tab
+      $$('.tab').forEach(t=>t.style.display='none')
+      document.getElementById(tab).style.display='block'
+      $('#page-title').textContent = it.textContent.trim()
+      renderAll()
+    }))
+
+    // Unlock / Lock system
+    function showLock(){ $('#lock-backdrop').style.display='flex' }
+    function hideLock(){ $('#lock-backdrop').style.display='none' }
+    let idleTimer = null
+    function resetIdle(){ if(idleTimer) clearTimeout(idleTimer); idleTimer = setTimeout(()=>{ showLock() }, (state.settings.idleLockSeconds||60)*1000) }
+    ['mousemove','keydown','touchstart'].forEach(e=>document.addEventListener(e,resetIdle))
+    resetIdle()
+    $('#lock-now').addEventListener('click',showLock)
+
+    // set admin PIN if none
+    if(!state.settings.adminPIN){
+      const pin = prompt('Set an admin PIN for lock (4-8 digits). You can change later in settings.')
+      if(pin) state.settings.adminPIN = pin; save(state)
+    }
+
+    $('#unlock-btn').addEventListener('click',()=>{
+      const val = $('#unlock-pin').value
+      if(val === state.settings.adminPIN){ hideLock(); $('#unlock-pin').value=''; resetIdle(); } else { alert('Incorrect PIN') }
+    })
+
+    // show pending popup on load if any
+    setTimeout(()=>showPendingPopupIfAny(),800)
+
+    // basic autosave when user leaves
+    window.addEventListener('beforeunload',()=>save(state))
+
+    // small helpers
+    function uid(){ return 'id_'+Math.random().toString(36).slice(2,9) }
+
+  </script>
+</body>
+</html>
